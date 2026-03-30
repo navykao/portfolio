@@ -7,9 +7,7 @@ const fetch = require('node-fetch');
 const cron = require('node-cron');
 
 const app = express();
-app.use(cors({
-  origin: ['https://navykao.github.io', 'http://localhost:5500', 'http://127.0.0.1:5500', 'null', null],
-  credentials: true
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 const db = new Database('./portfolio.db');

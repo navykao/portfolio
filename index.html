@@ -346,7 +346,7 @@ input:focus, select:focus { outline:none; border-color:var(--accent); }
                 <th>SYMBOL</th>
                 <th>ราคาซื้อ</th>
                 <th>ราคาปัจจุบัน</th>
-                <th>จำนวน</th>
+                <th>จำนวนหุ้น</th>
                 <th>มูลค่า</th>
                 <th>%P&L</th>
                 <th>สัดส่วน</th>
@@ -521,7 +521,7 @@ input:focus, select:focus { outline:none; border-color:var(--accent); }
 <div id="toast"></div>
 
 <script>
-const API = 'https://portfolio-9ebs.onrender.com';
+const API = 'http://localhost:3000';
 let stocksData = [];
 let currentFilter = 'all';
 
@@ -603,7 +603,7 @@ function renderTable(data, filter='all') {
       </td>
       <td>${fmt(s.buy_price)}</td>
       <td><strong>${fmt(s.current_price)}</strong></td>
-      <td>${fmt(s.qty, 0)}</td>
+      <td>${fmt(s.qty, 3)}</td>
       <td>${fmt(val)}</td>
       <td class="${colorClass(plPct)}">${plPct >= 0 ? '+' : ''}${fmt(plPct)}%</td>
       <td>

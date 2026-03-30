@@ -169,9 +169,10 @@ app.post('/smart-buy', async (req, res) => {
             } catch { fxRate = 34.5; fxSource = 'ค่าประมาณ'; }
         }
         const stockPriceTHB = stockPriceUSD * fxRate;
-        const qtyFloor = Math.floor(budget_thb / stockPriceTHB);
-        const actualCost = qtyFloor * stockPriceTHB;
-        res.json({ symbol: formatted, type, date, budget_thb: parseFloat(budget_thb), stock_price_usd: parseFloat(stockPriceUSD.toFixed(4)), fx_rate: parseFloat(fxRate.toFixed(4)), fx_source: fxSource, stock_price_thb: parseFloat(stockPriceTHB.toFixed(4)), qty_exact: parseFloat((budget_thb / stockPriceTHB).toFixed(6)), qty_floor: qtyFloor, actual_cost_thb: parseFloat(actualCost.toFixed(2)), remainder_thb: parseFloat((budget_thb - actualCost).toFixed(2)), ready_to_add: { symbol: symbol.toUpperCase(), type, price: parseFloat(stockPriceTHB.toFixed(2)), qty: qtyFloor, dividend: parseFloat(dividend || 0) } });
+        const qtyExact = budget_thb / stockPriceTHB;
+        const qty3dec = parseFloat(qtyExact.toFixed(3)); // เศษหุ้น 3 ตำแหน่ง
+        const actualCost = qty3dec * stockPriceTHB;
+        res.json({ symbol: formatted, type, date, budget_thb: parseFloat(budget_thb), stock_price_usd: parseFloat(stockPriceUSD.toFixed(4)), fx_rate: parseFloat(fxRate.toFixed(4)), fx_source: fxSource, stock_price_thb: parseFloat(stockPriceTHB.toFixed(4)), qty_exact: parseFloat(qtyExact.toFixed(6)), qty_floor: qty3dec, actual_cost_thb: parseFloat(actualCost.toFixed(2)), remainder_thb: parseFloat((budget_thb - actualCost).toFixed(2)), ready_to_add: { symbol: symbol.toUpperCase(), type, price: parseFloat(stockPriceTHB.toFixed(2)), qty: qty3dec, dividend: parseFloat(dividend || 0) } });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

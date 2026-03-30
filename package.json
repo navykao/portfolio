@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "node-cron": "^4.2.1",
+    "node-fetch": "^3.3.2",
+    "sqlite3": "^6.0.1"
+  },
+  "name": "potforio",
+  "version": "1.0.0",
+  "description": "| # | ปัญหาเดิม | วิธีแก้ | |---|-----------|---------| | 1 | Backend + Frontend ปนกันในไฟล์เดียว (รันไม่ได้) | แยกเป็น `server.js` + `index.html` | | 2 | `rebalance` ใช้ `price` (ราคาซื้อ) แทน `current_price` | ใช้ราคาจาก cache แทน | | 3 | ไม่แสดงจำนวนหุ้นที่ต้องซื้อ/ขาย | เพิ่ม `adjust_qty` = adjustValue / current_price | | 4 | ไม่มี error handling เมื่อ API fail | เพิ่ม try/catch + cache fallback | | 5 | ไม่มีระบบ auto-refresh ราคาอัตโนมัติ | เพิ่ม node-cron + price_cache table | | 6 | Frontend ต้องรันจาก HTTP server | เหมือนเดิม แต่เพิ่มคำอธิบาย |",
+  "main": "auto_rebalance_full_system_fixed_production_ready.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

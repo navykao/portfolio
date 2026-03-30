@@ -8,8 +8,8 @@ const cron = require('node-cron');
 
 const app = express();
 app.use(cors({ origin: '*' }));
-app.use(express.json());
-
+app.use(express.json()); 
+app.use(express.static('.'));
 const db = new Database('./portfolio.db');
 
 db.exec(`

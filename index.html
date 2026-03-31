@@ -325,12 +325,12 @@ select option{background:var(--surface);color:var(--text);}
           <div class="form-grid">
             <div class="form-row">
               <div><label>Symbol</label><input id="sb-symbol" placeholder="SCHG, AOT" oninput="this.value=this.value.toUpperCase()"></div>
-              <div><label>ประเภท</label><select id="sb-type"><option value="us">🇺🇸 US</option><option value="thai">🇹🇭 ไทย</option></select></div>
+              <div><label>ประเภท</label><select id="sb-type" onchange="updateSBDivLabel()"><option value="us">🇺🇸 US</option><option value="thai">🇹🇭 ไทย</option></select></div>
             </div>
             <div><label>วันที่ซื้อ</label><input id="sb-date" type="date"></div>
             <div class="form-row">
               <div><label>จำนวนเงินที่ซื้อ (USD)</label><input id="sb-budget" type="number" placeholder="100.00" step="0.01"></div>
-              <div><label>ปันผล % ต่อปี (Yield)</label><input id="sb-div" type="number" placeholder="0.00" step="0.01"></div>
+              <div><label id="lbl-sb-div">ปันผล/หุ้น/ปี (฿)</label><input id="sb-div" type="number" placeholder="0.00" step="0.01"></div>
             </div>
             <button class="btn btn-primary btn-full" onclick="smartBuy()" id="btn-sb">🔍 คำนวณ & ดึงราคา</button>
           </div>
@@ -365,7 +365,7 @@ select option{background:var(--surface);color:var(--text);}
               <div><label>สกุลเงิน</label><select id="f-currency" onchange="updateManualLabel()"><option value="USD">USD $</option><option value="THB">THB ฿</option></select></div>
               <div><label>จำนวนหุ้น</label><input id="f-qty" type="number" placeholder="100" step="0.001"></div>
             </div>
-            <div><label>ปันผล % ต่อปี (Yield)</label><input id="f-div" type="number" placeholder="0.00" step="0.01" min="0" max="100"></div>
+            <div><label id="lbl-div">ปันผล/หุ้น/ปี (฿)</label><input id="f-div" type="number" placeholder="0.00" step="0.01" min="0"></div>
             <button class="btn btn-primary btn-full" onclick="addStock()">เพิ่มหุ้น</button>
           </div>
         </div>
@@ -469,7 +469,9 @@ function updateManualCurrency() {
 }
 function updateManualLabel() {
   const c = document.getElementById('f-currency').value;
+  const type = document.getElementById('f-type').value;
   document.getElementById('lbl-price').textContent = `ราคาต่อหุ้นได้ (${c})`;
+  document.getElementById('lbl-div').textContent = type==='thai' ? 'ปันผล/หุ้น/ปี (฿)' : 'ปันผล/หุ้น/ปี ($) → แปลงเป็น ฿ อัตโนมัติ';
 }
 
 // ─── MERGE ───
@@ -654,7 +656,7 @@ function renderDividend(data) {
   document.getElementById('div-year-label').textContent=annual>0?`${sym}${fmt(annual)}/ปี`:'ยังไม่มีข้อมูล';
   document.getElementById('div-grid').innerHTML=MONTHS.map(m=>{const has=annual>0;return `<div class="div-month ${has?'has':''}"><div class="div-month-name">${m}</div><div class="div-month-amt ${has?'':'z'}">${has?sym+fmt(annual/12):'—'}</div></div>`;}).join('');
   const list=document.getElementById('div-stock-list');
-  if(!stocks.length){list.innerHTML='<div style="font-size:11px;color:var(--text3);font-family:DM Mono,monospace;text-align:center;padding:8px;font-weight:600">กรอกปันผล % ต่อปี (Yield) ตอนเพิ่มหุ้น</div>';return;}
+  if(!stocks.length){list.innerHTML='<div style="font-size:11px;color:var(--text3);font-family:DM Mono,monospace;text-align:center;padding:8px;font-weight:600">กรอกปันผล/หุ้น/ปี (บาท) ตอนเพิ่มหุ้น</div>';return;}
   list.innerHTML=stocks.map(s=>{const aTHB=s.dividend*s.qty;const a=displayCurrency==='USD'?aTHB/currentFX:aTHB;const m=a/12;const curVal=getCur(s);const y=curVal>0?(a/(curVal*s.qty))*100:0;return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1.5px solid var(--border);font-family:DM Mono,monospace;font-size:12px"><div><span style="font-weight:700;color:var(--text)">${s.symbol}</span> <span class="badge badge-${s.type==='thai'?'th':'us'}">${s.type==='thai'?'TH':'US'}</span><div style="font-size:10px;color:var(--text3);font-weight:600;margin-top:2px">Yield ${fmt(y,2)}%</div></div><div style="text-align:right"><div style="font-weight:700;color:var(--green)">${sym}${fmt(m)}/เดือน</div><div style="font-size:10px;color:var(--text3);font-weight:600">${sym}${fmt(a)}/ปี</div></div></div>`;}).join('');
 }
 
@@ -675,7 +677,7 @@ async function addStock(){
   const priceInput=parseFloat(document.getElementById('f-price').value);
   const currency=document.getElementById('f-currency').value;
   const qty=parseFloat(document.getElementById('f-qty').value);
-  const divYieldPct=parseFloat(document.getElementById('f-div').value)||0;
+  const divPerShare=parseFloat(document.getElementById('f-div').value)||0; // บาท/หุ้น/ปี ตรงๆ
   const totalAmount=parseFloat(document.getElementById('f-total-amount').value)||0;
   const commission=parseFloat(document.getElementById('f-commission').value)||0;
 
@@ -686,20 +688,17 @@ async function addStock(){
   if(totalAmount > 0 && qty > 0) {
     const netAmount = totalAmount - commission;
     if(netAmount <= 0){toast('จำนวนเงินสุทธิต้องมากกว่า 0','error');return;}
-    effectivePrice = netAmount / qty; // ราคาต่อหุ้นสุทธิ (ใช้สกุลเงินเดียวกับ currency)
+    effectivePrice = netAmount / qty;
   } else if(!priceInput) {
     toast('กรอกราคาต่อหุ้น หรือจำนวนเงินที่ซื้อ','error');return;
   }
 
-  // แปลง dividend จาก % เป็น มูลค่าต่อหุ้น (ใช้ราคาปัจจุบัน × yield%)
-  // เก็บ yield % ไว้ใน dividend field โดยตรง (server จะเก็บเป็น % แทน)
-  const divYield = divYieldPct / 100; // เป็น decimal
-
   let priceTHB = effectivePrice;
   if(currency==='USD') priceTHB = effectivePrice * currentFX;
 
-  // dividend เก็บเป็น THB/หุ้น/ปี = ราคา THB × yield%
-  const dividendTHB = priceTHB * divYield;
+  // dividend: ถ้าหุ้น US ผู้ใช้กรอก USD/หุ้น/ปี → แปลงเป็น THB อัตโนมัติ
+  // ถ้าหุ้นไทย ผู้ใช้กรอก THB/หุ้น/ปี → ส่งตรงๆ
+  const dividendTHB = type==='us' ? divPerShare * currentFX : divPerShare;
 
   try{
     const r=await fetch(API+'/stock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol,type,price:priceTHB,qty,dividend:dividendTHB})});
@@ -733,9 +732,14 @@ async function loadTargets(){const r=await fetch(API+'/targets');const data=awai
 // ─── REFRESH ───
 async function refreshPrices(){const btn=document.getElementById('btn-refresh');btn.disabled=true;btn.innerHTML='<span class="spin spin-dark"></span>';try{const r=await fetch(API+'/refresh-prices',{method:'POST'});const d=await r.json();toast(`อัปเดต ${d.updated} หุ้น`+(d.errors?.length?` (${d.errors.length} ผิดพลาด)`:''));loadStocks();}catch{toast('อัปเดตไม่ได้','error');}finally{btn.disabled=false;btn.innerHTML='⟳ อัปเดต';}}
 
+function updateSBDivLabel() {
+  const type = document.getElementById('sb-type').value;
+  document.getElementById('lbl-sb-div').textContent = type==='thai' ? 'ปันผล/หุ้น/ปี (฿)' : 'ปันผล/หุ้น/ปี ($) → แปลงเป็น ฿ อัตโนมัติ';
+}
+
 // ─── SMART BUY #1: งบเป็น USD ───
 let sbResult=null;
-async function smartBuy(){const symbol=document.getElementById('sb-symbol').value.trim();const type=document.getElementById('sb-type').value;const date=document.getElementById('sb-date').value;const budgetUSD=parseFloat(document.getElementById('sb-budget').value);const div=parseFloat(document.getElementById('sb-div').value)||0;if(!symbol||!date||!budgetUSD){toast('กรอกข้อมูลให้ครบ','error');return;}const budget_thb=budgetUSD*currentFX;const btn=document.getElementById('btn-sb');btn.disabled=true;btn.innerHTML='<span class="spin"></span> กำลังดึง...';document.getElementById('sb-result').style.display='none';try{const r=await fetch(API+'/smart-buy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol,type,date,budget_thb,dividend:div})});const d=await r.json();if(!r.ok)throw new Error(d.error||'error');sbResult=d;const isUS=d.type==='us';const costUSD=(d.actual_cost_thb/currentFX);const remainUSD=(d.remainder_thb/currentFX);document.getElementById('sb-result').innerHTML=`<div class="result-box"><div style="font-size:11px;color:var(--text3);font-family:DM Mono,monospace;font-weight:700;margin-bottom:10px">📊 ผลการคำนวณ — ${d.date}</div>${isUS?`<div class="result-row"><span class="result-key">ราคา USD</span><span class="result-val">$${fmt(d.stock_price_usd,4)}</span></div><div class="result-row"><span class="result-key">FX Rate</span><span class="result-val">฿${fmt(d.fx_rate,2)}</span></div>`:''}<div class="result-row"><span class="result-key">ราคา (THB)</span><span class="result-val">฿${fmt(d.stock_price_thb,2)}</span></div><div class="result-row"><span class="result-key">งบประมาณ</span><span class="result-val">$${fmt(budgetUSD)} (฿${fmt(budget_thb)})</span></div><div class="result-row"><span class="result-key">จำนวนหุ้น</span><span class="result-big">${d.qty_floor} หุ้น</span></div><div class="result-row"><span class="result-key">ค่าใช้จ่าย</span><span class="result-val">$${fmt(costUSD)} (฿${fmt(d.actual_cost_thb)})</span></div><div class="result-row"><span class="result-key">เงินเหลือ</span><span style="color:var(--yellow);font-weight:700">$${fmt(remainUSD)} (฿${fmt(d.remainder_thb)})</span></div><button class="btn btn-primary btn-full" style="margin-top:12px" onclick="confirmSmartBuy()">✅ เพิ่มเข้าพอร์ต</button></div>`;document.getElementById('sb-result').style.display='block';}catch(e){toast('❌ '+e.message,'error');}finally{btn.disabled=false;btn.innerHTML='🔍 คำนวณ & ดึงราคา';}}
+async function smartBuy(){const symbol=document.getElementById('sb-symbol').value.trim();const type=document.getElementById('sb-type').value;const date=document.getElementById('sb-date').value;const budgetUSD=parseFloat(document.getElementById('sb-budget').value);const divInput=parseFloat(document.getElementById('sb-div').value)||0;const div=type==='us'?divInput*currentFX:divInput;if(!symbol||!date||!budgetUSD){toast('กรอกข้อมูลให้ครบ','error');return;}const budget_thb=budgetUSD*currentFX;const btn=document.getElementById('btn-sb');btn.disabled=true;btn.innerHTML='<span class="spin"></span> กำลังดึง...';document.getElementById('sb-result').style.display='none';try{const r=await fetch(API+'/smart-buy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol,type,date,budget_thb,dividend:div})});const d=await r.json();if(!r.ok)throw new Error(d.error||'error');sbResult=d;const isUS=d.type==='us';const costUSD=(d.actual_cost_thb/currentFX);const remainUSD=(d.remainder_thb/currentFX);document.getElementById('sb-result').innerHTML=`<div class="result-box"><div style="font-size:11px;color:var(--text3);font-family:DM Mono,monospace;font-weight:700;margin-bottom:10px">📊 ผลการคำนวณ — ${d.date}</div>${isUS?`<div class="result-row"><span class="result-key">ราคา USD</span><span class="result-val">$${fmt(d.stock_price_usd,4)}</span></div><div class="result-row"><span class="result-key">FX Rate</span><span class="result-val">฿${fmt(d.fx_rate,2)}</span></div>`:''}<div class="result-row"><span class="result-key">ราคา (THB)</span><span class="result-val">฿${fmt(d.stock_price_thb,2)}</span></div><div class="result-row"><span class="result-key">งบประมาณ</span><span class="result-val">$${fmt(budgetUSD)} (฿${fmt(budget_thb)})</span></div><div class="result-row"><span class="result-key">จำนวนหุ้น</span><span class="result-big">${d.qty_floor} หุ้น</span></div><div class="result-row"><span class="result-key">ค่าใช้จ่าย</span><span class="result-val">$${fmt(costUSD)} (฿${fmt(d.actual_cost_thb)})</span></div><div class="result-row"><span class="result-key">เงินเหลือ</span><span style="color:var(--yellow);font-weight:700">$${fmt(remainUSD)} (฿${fmt(d.remainder_thb)})</span></div><button class="btn btn-primary btn-full" style="margin-top:12px" onclick="confirmSmartBuy()">✅ เพิ่มเข้าพอร์ต</button></div>`;document.getElementById('sb-result').style.display='block';}catch(e){toast('❌ '+e.message,'error');}finally{btn.disabled=false;btn.innerHTML='🔍 คำนวณ & ดึงราคา';}}
 async function confirmSmartBuy(){if(!sbResult)return;const d=sbResult.ready_to_add;try{const r=await fetch(API+'/stock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(!r.ok)throw new Error();toast(`✅ เพิ่ม ${d.symbol} ${d.qty} หุ้น`);document.getElementById('sb-result').style.display='none';sbResult=null;loadStocks();}catch{toast('เกิดข้อผิดพลาด','error');}}
 
 setInterval(loadStocks, 5*60*1000);
